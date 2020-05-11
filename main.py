@@ -1,4 +1,3 @@
-#%%
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -1074,10 +1073,8 @@ def top_50_airports():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        base_dir = sys.argv[1]
-    else:
-        base_dir = 'C:/Users/zacho/Documents/BSDS200/final_project'
+    base_dir = sys.argv[1]
+
     print("LOADING PANDAS")
     load_pandas(base_dir)
     
@@ -1092,3 +1089,6 @@ if __name__ == "__main__":
 
     print("PERFORMING ANALYSIS")
     perform_NBayes_analysis()
+
+    print("PERFORMING LOG REG ANALYSIS")
+    perform_LogReg_analysis()

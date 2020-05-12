@@ -1,14 +1,6 @@
-#%%
 import pandas as pd 
 import numpy as np 
 from scipy.stats import norm
-import psycopg2
-import ipdb
-
-#%%
-
-# Build Function which will find all
-# classes and probabilities of the classes
 
 class NBayes:
 
@@ -157,39 +149,3 @@ class NBayes:
 
     def get_metrics(self):
         for k, v in self.metrics.items(): print(k, ': ', v)
-
-#%%
-if __name__ == "__main__":
-
-
-
-    path = 'C:/Users/zacho/Documents/BSDS200/final_project'
-
-    df = pd.read_csv(path + '/final2018.tdf',
-        delimiter='\t',
-        header=0,
-        parse_dates=['FL_DATE','CRS_DEP_TIME','DEP_TIME', \
-            'CRS_ARR_TIME','ARR_TIME','WHEELS_ON','WHEELS_OFF']
-    )[:50000]
-
-    df.loc[:, 'CRS_HOUR'] = df.CRS_DEP_TIME.dt.hour
-    df.loc[:, 'CRS_MONTH'] = df.CRS_DEP_TIME.dt.month
-
-    y = df.DELAYED
-
-    multinomial = ['OP_CARRIER','ORIGIN','DEST','CRS_HOUR','CRS_MONTH']
-    gaussian = ['DISTANCE']
-
-    df = df.loc[:, multinomial + gaussian]
-    
-    x_train = df[:40000]
-    y_train = y[:40000]
-
-    x_test = df[40000:]
-    y_test = y[40000:]
-
-    nb = NBayes()
-    nb.fit(df=x_train, y=y_train, multinomial=multinomial, gaussian=gaussian)
-
-    preds = nb.predict(x_pred=x_test, y_pred=y_test)
-    nb.get_metrics()

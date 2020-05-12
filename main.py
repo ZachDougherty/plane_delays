@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 from NBayes import NBayes
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
 from sklearn.linear_model import LogisticRegression
 import os
@@ -818,9 +819,9 @@ Logistic Regression analysis
 """
 def perform_LogReg_analysis():
     
-    july_X, july_Y = prepareData(startDate = '2018-7-1', endDate = '2018-7-31')
-    february_X,february_Y = prepareData(startDate='2018-2-1',endDate='2018-2-28')
-    april_X,april_Y = prepareData(startDate = '2018-4-1',endDate='2018-4-30')
+    july_X, july_Y = prepareDatalogisticRegression(startDate = '2018-7-1', endDate = '2018-7-31')
+    february_X,february_Y = prepareDatalogisticRegression(startDate='2018-2-1',endDate='2018-2-28')
+    april_X,april_Y = prepareDatalogisticRegression(startDate = '2018-4-1',endDate='2018-4-30')
 
     july_label_actual, july_predictions = LogReg(july_X,july_Y)
 
@@ -828,7 +829,28 @@ def perform_LogReg_analysis():
 
     april_label_actual, april_predictions = LogReg(april_X,april_Y)
 
-""" Helper Functions """
+"""
+Function for performing
+Random Forest analysiss
+"""
+def perform_RF_analysis():
+    # July Predictions and Accuracy
+    july_X, july_Y = prepareDataRandomForest(startDate = '2018-7-1', endDate = '2018-7-31')
+    july_label_actual, july_predictions = randomForestClassification(july_X,july_Y)
+    july_accuracy = calcAccuracy(july_label_actual,july_predictions)
+    calcMetrics(july_label_actual,july_predictions)
+
+    # February Predictions and Accuracy
+    february_X,february_Y =prepareDataRandomForest(startDate='2018-2-1',endDate='2018-2-28')
+    february_label_actual,february_predictions = randomForestClassification(february_X,february_Y)
+    february_accuracy = calcAccuracy(february_label_actual,february_predictions)
+    calcMetrics(february_label_actual,february_predictions)
+
+
+    april_X,april_Y=prepareDataRandomForest(startDate = '2018-4-1',endDate='2018-4-30')
+    april_label_actual,april_predictions = randomForestClassification(april_X,april_Y)
+    april_accuracy = calcAccuracy(april_label_actual,april_predictions)
+    calcMetrics(april_label_actual,april_predictions)
 
 """
 Returns a dataframe which only includes
@@ -939,6 +961,48 @@ def LogReg(features,labels):
     return month_Y_true, month_preds
 
 """
+*This function takes in the features df, and the labels series as input
+*With those two parameters, this function will run the data through 
+    a random forest and return a prediction array, as well as various
+    statistics explaining the effectiveness of the model
+*Note: features = month_X, label = month_Y from prepareData()
+* This function will return the Y_test data, and the predictions to be compared
+    or thrown into another function that calculates the accruacy of the 
+    predictions
+    
+"""
+def randomForestClassification(features,labels):
+    print('RandForestRegression Step 1/4: Splitting Data...')
+    
+    #use sklearn.model_selection.train_test_split to partition the data
+    #   into test/training sets
+    #Note: month_Y_true = Y_test
+    month_X_training, month_X_test, month_Y_training, month_Y_true = \
+        train_test_split(features,labels,train_size = 0.8, test_size = 0.2,\
+                         random_state = 1)
+    
+    #initiate RandomForestRegressor Object
+    month_rf = RandomForestClassifier(n_estimators = 1000, random_state = 1)
+    
+    #Train the Model
+    #   have to pass an array or a sparse matric to fit
+    print('Random Forest Step 2/4: Converting to numPy Arrays')
+    mnth_X_training = np.array(month_X_training)
+    mnth_X_test = np.array(month_X_test)
+    
+    print('Random Forest Step 3/4: Training the Model')
+    month_rf.fit(mnth_X_training,month_Y_training)
+    print("Fitting Score:", month_rf.score(mnth_X_training,month_Y_training))
+    
+    #Make Predictions
+    print('Random Forest Final Step: Making Predictions')
+    month_preds = month_rf.predict(mnth_X_test)
+    print('Predict Score:', month_rf.score(mnth_X_test, month_Y_true))
+    
+    return month_Y_true, month_preds
+
+
+"""
 Function which names all columns
 of the tuples returned by SQL
 """
@@ -1001,7 +1065,44 @@ This Function will return month_X (dataFrame) and month_Y (Series)
 The returned values will be used to create train and test data
 **Note: when calling function -> X,Y = prepareData('2018-7-1','2018-7-31')
 '''
-def prepareData(startDate, endDate):
+def prepareDataLogisticRegression(startDate, endDate):
+    print('Preparing Data for dates in range',startDate,':',endDate)
+    #calculate top50 airports for later use, save to series
+    print('Preparing Data Step 1/4: Populating 50 busiest airports')
+    avg_flights_per_day = top_50_airports()
+    topFiftyAirports = avg_flights_per_day.ORIGIN
+    
+    #get dataFrame filled with data from the time period of the parameters
+    month_delays = get_congestion(window = [startDate,endDate]).fillna(0)
+    month_delays = month_delays[month_delays['ORIGIN'].isin(topFiftyAirports)]
+    month_label = month_delays.DELAYED
+    print('Preparing Data Step 2/4: Dropping Columns')
+    month_delays = month_delays.drop(columns = ['FL_DATE','DELAYED'])
+    
+    # cannot fit model with datetime type columns
+    # create list of datetime columns
+    print('Preparing Data Step 3/4: Fixing Column Types')
+    dtimeCols = ['CRS_DEP_TIME','DEP_TIME','CRS_ARR_TIME','ARR_TIME','WHEELS_OFF','WHEELS_ON']
+    for col in dtimeCols:
+        month_delays.loc[:,col] = month_delays[col].dt.strftime('%Y-%m-%d')
+
+    cols = ['OP_CARRIER','ORIGIN','DEST','HR','DOW','DISTANCE','NUM_FLIGHTS']
+    month_delays = month_delays.loc[:, cols]
+
+    print('Preparing Data Step Final Step: One-Hot Encoding')
+    month_delays = pd.get_dummies(month_delays)
+
+    return month_delays, month_label
+
+'''
+This Function takes in a start and end date as parameters. This range of 
+dates will pull all needed data for the given time frame.
+This Function will return month_X (dataFrame) and month_Y (Series)
+The returned values will be used to create train and test data
+Note: when calling function -> X,Y = prepareData('2018-7-1','2018-7-31')
+for Random Forest
+'''
+def prepareDataRandomForest(startDate, endDate):
     print('Preparing Data for dates in range',startDate,':',endDate)
     #calculate top50 airports for later use, save to series
     print('Preparing Data Step 1/4: Populating 50 busiest airports')
@@ -1022,10 +1123,34 @@ def prepareData(startDate, endDate):
     for col in dtimeCols:
         month_delays.loc[:,col] = month_delays[col].dt.strftime('%Y-%m-%d')
     
-    print('Preparing Data Step Final Step: One-Hot Encoding')
+    print('Preparing Data Step 4/4: One-Hot Encoding')
     month_delays = pd.get_dummies(month_delays)
     
     return month_delays, month_label
+
+
+def calcAccuracy(Y_true, Y_preds):  
+    accScore = 0
+    numRows = Y_true.shape[0]
+    
+    Y_true = Y_true.values
+    
+    for i in range(numRows):
+        if Y_true[i] == Y_preds[i]:
+            accScore += 1
+    
+    return (accScore/numRows) * 100
+
+
+def calcMetrics(Y_true,Y_preds):
+    print()
+    print('Metrics From the Data')
+    print("Accuracy of Predictions is:", calcAccuracy(Y_true,Y_preds))
+    print('Average Precision Score:', metrics.average_precision_score(Y_true,Y_preds))
+    print('F1-Score:', metrics.f1_score(Y_true,Y_preds, average = None))
+    print('Precision Score:', metrics.precision_score(Y_true,Y_preds, average = None))
+    print('Recall Score:', metrics.recall_score(Y_true,Y_preds, average = 'binary'))
+
 
 """
 Returns top 50
@@ -1069,8 +1194,6 @@ def top_50_airports():
     avg_flights_per_day.avg_flights = avg_flights_per_day.avg_flights.astype('int64')
     
     return avg_flights_per_day  
-
-
 
 if __name__ == "__main__":
     base_dir = sys.argv[1]

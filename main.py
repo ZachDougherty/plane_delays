@@ -819,9 +819,9 @@ Logistic Regression analysis
 """
 def perform_LogReg_analysis():
     
-    july_X, july_Y = prepareDatalogisticRegression(startDate = '2018-7-1', endDate = '2018-7-31')
-    february_X,february_Y = prepareDatalogisticRegression(startDate='2018-2-1',endDate='2018-2-28')
-    april_X,april_Y = prepareDatalogisticRegression(startDate = '2018-4-1',endDate='2018-4-30')
+    july_X, july_Y = prepareDataLogisticRegression(startDate = '2018-7-1', endDate = '2018-7-31')
+    february_X,february_Y = prepareDataLogisticRegression(startDate='2018-2-1',endDate='2018-2-28')
+    april_X,april_Y = prepareDataLogisticRegression(startDate = '2018-4-1',endDate='2018-4-30')
 
     july_label_actual, july_predictions = LogReg(july_X,july_Y)
 
